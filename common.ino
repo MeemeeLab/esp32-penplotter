@@ -1,6 +1,15 @@
 #include "common.h"
 #include "serial.h"
 
+/* Call this function inside blocking while loop to avoid blocking important
+ * tasks like WiFi. */
+void common_yield() {
+  /* Higher values can have good consequence for other tasks, like IP/WiFi
+   * stack response time, however too much can result in poor penplotter
+   * accuracy. */
+  vTaskDelay(5);
+}
+
 /*
  * Motor
  */
@@ -68,14 +77,14 @@ void common_servo_up(struct common_state *state) {
 
 void common_servo_down_remote(struct common_state *state) {
   serial_send_extended(PACKET_TYPE_EXTENDED_SERVO_DOWN);
-  while (!state->cb.servo_down_ack) {}
+  while (!state->cb.servo_down_ack) common_yield();
 
   state->cb.servo_down_ack = false;
 }
 
 void common_servo_up_remote(struct common_state *state) {
   serial_send_extended(PACKET_TYPE_EXTENDED_SERVO_UP);
-  while (!state->cb.servo_up_ack) {}
+  while (!state->cb.servo_up_ack) common_yield();
 
   state->cb.servo_up_ack = false;
 }
@@ -137,7 +146,7 @@ void common_actuator_move_remote(uint16_t value) {
 }
 
 void common_actuator_wait_remote(struct common_state *state) {
-  while (!state->cb.actuator_ack) {}
+  while (!state->cb.actuator_ack) common_yield();
 
   state->cb.actuator_ack = false;
 }
@@ -173,6 +182,7 @@ void common_actuator_move(struct common_axis_calibration_data *calibration,
     abs((int32_t)target - (int32_t)current) > 5
       && (motor.forward ? target > current : target < current)
   ) {
+    common_yield();
     current = common_potentiometer_read_raw();
   }
 
@@ -209,7 +219,7 @@ void common_actuator_calibrate_remote(void) {
 }
 
 void common_actuator_calibrate_wait_remote(struct common_state *state) {
-  while (!state->cb.calibration_ack) {}
+  while (!state->cb.calibration_ack) common_yield();
 
   state->cb.calibration_ack = false;
 }
